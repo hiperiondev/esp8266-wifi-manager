@@ -397,48 +397,35 @@ void wifi_manager_clear_ip_info_json() {
 }
 
 void wifi_manager_generate_ip_info_json(update_reason_code_t update_reason_code) {
-    ESP_LOGI(TAG, "-- wifi_manager_generate_ip_info_json");
     wifi_config_t *config = wifi_manager_get_wifi_sta_config();
     if (config) {
-        ESP_LOGI(TAG, "-- a");
         const char *ip_info_json_format = ",\"ip\":\"%s\",\"netmask\":\"%s\",\"gw\":\"%s\",\"urc\":%d}\n";
-        ESP_LOGI(TAG, "-- b");
         memset(ip_info_json, 0x00, JSON_IP_INFO_SIZE);
-        ESP_LOGI(TAG, "-- d");
+
         /* to avoid declaring a new buffer we copy the data directly into the buffer at its correct address */
         strcpy(ip_info_json, "{\"ssid\":");
-        ESP_LOGI(TAG, "-- e");
         json_print_string(config->sta.ssid, (unsigned char*) (ip_info_json + strlen(ip_info_json)));
-        ESP_LOGI(TAG, "-- f");
         size_t ip_info_json_len = strlen(ip_info_json);
         size_t remaining = JSON_IP_INFO_SIZE - ip_info_json_len;
         if (update_reason_code == UPDATE_CONNECTION_OK) {
             /* rest of the information is copied after the ssid */
             tcpip_adapter_ip_info_t ip_info;
-            ESP_LOGI(TAG, "-- g");
             ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
 
             char ip[IP4ADDR_STRLEN_MAX]; /* note: IP4ADDR_STRLEN_MAX is defined in lwip */
             char gw[IP4ADDR_STRLEN_MAX];
             char netmask[IP4ADDR_STRLEN_MAX];
-            ESP_LOGI(TAG, "-- h");
             strcpy(ip, ip4addr_ntoa(&ip_info.ip));
-            ESP_LOGI(TAG, "-- i");
             strcpy(gw, ip4addr_ntoa(&ip_info.gw));
-            ESP_LOGI(TAG, "-- j");
             strcpy(netmask, ip4addr_ntoa(&ip_info.netmask));
-            ESP_LOGI(TAG, "-- k");
             snprintf((ip_info_json + ip_info_json_len), remaining, ip_info_json_format, ip, netmask, gw, (int) update_reason_code);
         } else {
             /* notify in the json output the reason code why this was updated without a connection */
-            ESP_LOGI(TAG, "-- l");
             snprintf((ip_info_json + ip_info_json_len), remaining, ip_info_json_format, "0", "0", "0", (int) update_reason_code);
         }
     } else {
-        ESP_LOGI(TAG, "-- m");
         wifi_manager_clear_ip_info_json();
     }
-    ESP_LOGI(TAG, "-- n");
 }
 
 void wifi_manager_clear_access_points_json() {
@@ -1173,7 +1160,7 @@ void wifi_manager(void *pvParameters) {
 
                 /* start DNS */
                 ESP_LOGI(TAG, "dns_server_start");
-                //dns_server_start();
+                dns_server_start();
 
                 /* callback */
                 if (cb_ptr_arr[msg.code])
@@ -1241,7 +1228,7 @@ void wifi_manager(void *pvParameters) {
                 }
 
                 /* bring down DNS hijack */
-                //dns_server_stop();
+                dns_server_stop();
 
                 /* start the timer that will eventually shutdown the access point
                  * We check first that it's actually running because in case of a boot and restore connection
