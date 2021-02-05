@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+#define tskNO_AFFINITY      ( 0x7FFFFFFF )
 /*
 note: esp_https_server.h includes a customized copy of this
 initializer that should be kept in sync
@@ -34,6 +35,7 @@ initializer that should be kept in sync
 #define HTTPD_DEFAULT_CONFIG() {                        \
         .task_priority      = tskIDLE_PRIORITY+5,       \
         .stack_size         = 4096,                     \
+		.core_id            = tskNO_AFFINITY,           \
         .server_port        = 80,                       \
         .ctrl_port          = 32768,                    \
         .max_open_sockets   = 7,                        \
