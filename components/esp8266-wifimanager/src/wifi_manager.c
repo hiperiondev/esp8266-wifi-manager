@@ -213,7 +213,7 @@ void wifi_manager_start() {
     xTaskCreate(
             &wifi_manager,
             "wifi_manager",
-            4096,
+            2048,
             NULL,
             WIFI_MANAGER_TASK_PRIORITY,
             &task_wifi_manager
@@ -428,7 +428,6 @@ void wifi_manager_clear_access_points_json() {
     strcpy(accessp_json, "[]\n");
 }
 void wifi_manager_generate_acess_points_json() {
-    ESP_LOGI(TAG, "wifi_manager_generate_acess_points_json");
     strcpy(accessp_json, "[");
 
     const char oneap_str[] = ",\"chan\":%d,\"rssi\":%d,\"auth\":%d}%c\n";
@@ -449,7 +448,7 @@ void wifi_manager_generate_acess_points_json() {
         /* add it to the list */
         strcat(accessp_json, one_ap);
     }
-
+    ESP_LOGI(TAG, "access points:\n%s", accessp_json);
 }
 
 bool wifi_manager_lock_sta_ip_string(TickType_t xTicksToWait) {
@@ -896,9 +895,9 @@ void wifi_manager(void *pvParameters) {
     /* start http server */
     ESP_LOGI(TAG, "wifi_manager http_app_start(false)");
 #ifdef USE_HTTPS
-    https_app_start(false);
+    https_app_start(true);
 #else
-    http_app_start(false);
+    http_app_start(true);
 #endif
 
     /* wifi scanner config */
@@ -1191,10 +1190,10 @@ void wifi_manager(void *pvParameters) {
                     /* restart HTTP daemon */
 #ifdef USE_HTTPS
                     https_app_stop();
-                    https_app_start(false);
+                    https_app_start(true);
 #else
                     http_app_stop();
-                    http_app_start(false);
+                    http_app_start(true);
 #endif
 
                     /* callback */

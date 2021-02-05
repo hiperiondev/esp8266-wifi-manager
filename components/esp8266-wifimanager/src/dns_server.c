@@ -91,11 +91,6 @@ void dns_server(void *pvParameters) {
 
     /* Bind to port 53 (typical DNS Server port) */
     tcpip_adapter_ip_info_t ip;
-    //tcpip_adapter_if_t *netif_sta = wifi_manager_get_esp_netif_sta();
-    //if (netif_sta == NULL) {
-    //    ESP_LOGE(TAG, "netif_sta NULL");
-    //    exit(1);
-    //}
 
     ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip));
     ra.sin_family = AF_INET;

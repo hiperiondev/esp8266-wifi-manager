@@ -511,8 +511,7 @@ void https_app_start(bool lru_purge_enable) {
 
     config.httpd.uri_match_fn = httpd_uri_match_wildcard;
     config.httpd.lru_purge_enable = lru_purge_enable;
-    config.httpd.max_open_sockets = (CONFIG_LWIP_MAX_SOCKETS - 3);
-    config.httpd.stack_size = 5000;
+    config.httpd.stack_size = 4096;
 
     /* generate the URLs */
     if(http_root_url == NULL)

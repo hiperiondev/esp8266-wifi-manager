@@ -105,7 +105,7 @@ extern "C" {
 #define DEFAULT_AP_PASSWORD 				CONFIG_DEFAULT_AP_PASSWORD
 
 /** @brief Defines the hostname broadcasted by mDNS */
-#define DEFAULT_HOSTNAME					"esp32"
+#define DEFAULT_HOSTNAME					"esp8266"
 
 /** @brief Defines access point's bandwidth.
  *  Value: WIFI_BW_HT20 for 20 MHz  or  WIFI_BW_HT40 for 40 MHz
@@ -217,15 +217,18 @@ typedef enum message_code_t {
  * esp-idf maintains a big list of reason codes which in practice are useless for most typical application.
  */
 typedef enum update_reason_code_t {
-    UPDATE_CONNECTION_OK = 0, UPDATE_FAILED_ATTEMPT = 1, UPDATE_USER_DISCONNECT = 2, UPDATE_LOST_CONNECTION = 3
+    UPDATE_CONNECTION_OK   = 0,
+    UPDATE_FAILED_ATTEMPT  = 1,
+    UPDATE_USER_DISCONNECT = 2,
+    UPDATE_LOST_CONNECTION = 3
 } update_reason_code_t;
 
 typedef enum connection_request_made_by_code_t {
-    CONNECTION_REQUEST_NONE = 0,
-    CONNECTION_REQUEST_USER = 1,
-    CONNECTION_REQUEST_AUTO_RECONNECT = 2,
+    CONNECTION_REQUEST_NONE               = 0,
+    CONNECTION_REQUEST_USER               = 1,
+    CONNECTION_REQUEST_AUTO_RECONNECT     = 2,
     CONNECTION_REQUEST_RESTORE_CONNECTION = 3,
-    CONNECTION_REQUEST_MAX = 0x7fffffff /*force the creation of this enum as a 32 bit int */
+    CONNECTION_REQUEST_MAX                = 0x7fffffff /*force the creation of this enum as a 32 bit int */
 } connection_request_made_by_code_t;
 
 /**
