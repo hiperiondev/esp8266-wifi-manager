@@ -53,11 +53,13 @@ extern "C" {
  * @brief spawns the http server 
  */
 void http_app_start(bool lru_purge_enable);
+void https_app_start(bool lru_purge_enable);
 
 /**
  * @brief stops the http server 
  */
 void http_app_stop();
+void https_app_stop();
 
 /** 
  * @brief sets a hook into the wifi manager URI handlers. Setting the handler to NULL disables the hook.

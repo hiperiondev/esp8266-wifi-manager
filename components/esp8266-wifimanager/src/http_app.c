@@ -42,7 +42,7 @@ function to process requests, decode URLs, serve files, etc. etc.
 #include <esp_system.h>
 #include "esp_netif.h"
 #include <esp_http_server.h>
-
+#include <esp_https_server.h>
 #include "wifi_manager.h"
 #include "http_app.h"
 
@@ -354,47 +354,59 @@ static const httpd_uri_t http_server_delete_request = {
 };
 
 
-void http_app_stop(){
-
-	if(httpd_handle != NULL){
-
-
-		/* dealloc URLs */
-		if(http_root_url) {
-			free(http_root_url);
-			http_root_url = NULL;
-		}
-		if(http_redirect_url){
-			free(http_redirect_url);
-			http_redirect_url = NULL;
-		}
-		if(http_js_url){
-			free(http_js_url);
-			http_js_url = NULL;
-		}
-		if(http_css_url){
-			free(http_css_url);
-			http_css_url = NULL;
-		}
-		if(http_connect_url){
-			free(http_connect_url);
-			http_connect_url = NULL;
-		}
-		if(http_ap_url){
-			free(http_ap_url);
-			http_ap_url = NULL;
-		}
-		if(http_status_url){
-			free(http_status_url);
-			http_status_url = NULL;
-		}
-
-		/* stop server */
-		httpd_stop(httpd_handle);
-		httpd_handle = NULL;
-	}
+void http_app_dealloc_urls(void) {
+    /* dealloc URLs */
+    if (http_root_url) {
+        free(http_root_url);
+        http_root_url = NULL;
+    }
+    if (http_redirect_url) {
+        free(http_redirect_url);
+        http_redirect_url = NULL;
+    }
+    if (http_js_url) {
+        free(http_js_url);
+        http_js_url = NULL;
+    }
+    if (http_css_url) {
+        free(http_css_url);
+        http_css_url = NULL;
+    }
+    if (http_connect_url) {
+        free(http_connect_url);
+        http_connect_url = NULL;
+    }
+    if (http_ap_url) {
+        free(http_ap_url);
+        http_ap_url = NULL;
+    }
+    if (http_status_url) {
+        free(http_status_url);
+        http_status_url = NULL;
+    }
 }
 
+void http_app_stop() {
+
+    if (httpd_handle != NULL) {
+        http_app_dealloc_urls();
+
+        /* stop server */
+        httpd_stop(httpd_handle);
+        httpd_handle = NULL;
+    }
+}
+
+void https_app_stop() {
+
+    if (httpd_handle != NULL) {
+        http_app_dealloc_urls();
+
+        /* stop server */
+        httpd_ssl_stop(httpd_handle);
+        httpd_handle = NULL;
+    }
+}
 
 /**
  * @brief helper to generate URLs of the wifi manager
@@ -412,6 +424,48 @@ static char* http_app_generate_url(const char* page){
 	return ret;
 }
 
+void http_app_register_uris(httpd_handle_t httpd_handle) {
+    ESP_LOGI(TAG, "Registering URI handlers");
+    httpd_register_uri_handler(httpd_handle, &http_server_get_request);
+    httpd_register_uri_handler(httpd_handle, &http_server_post_request);
+    httpd_register_uri_handler(httpd_handle, &http_server_delete_request);
+}
+
+void http_app_generate_urls(void) {
+    int root_len = strlen(WEBAPP_LOCATION);
+
+    /* all the pages */
+    const char page_js[] = "code.js";
+    const char page_css[] = "style.css";
+    const char page_connect[] = "connect.json";
+    const char page_ap[] = "ap.json";
+    const char page_status[] = "status.json";
+
+    /* root url, eg "/"   */
+    const size_t http_root_url_sz = sizeof(char) * (root_len + 1);
+    http_root_url = malloc(http_root_url_sz);
+    memset(http_root_url, 0x00, http_root_url_sz);
+    strcpy(http_root_url, WEBAPP_LOCATION);
+
+    /* redirect url */
+    size_t redirect_sz = 22 + root_len + 1; /* strlen(http://255.255.255.255) + strlen("/") + 1 for \0 */
+    http_redirect_url = malloc(sizeof(char) * redirect_sz);
+    *http_redirect_url = '\0';
+
+    if (root_len == 1) {
+        snprintf(http_redirect_url, redirect_sz, "http://%s", DEFAULT_AP_IP);
+    } else {
+        snprintf(http_redirect_url, redirect_sz, "http://%s%s", DEFAULT_AP_IP, WEBAPP_LOCATION);
+    }
+
+    /* generate the other pages URLs*/
+    http_js_url = http_app_generate_url(page_js);
+    http_css_url = http_app_generate_url(page_css);
+    http_connect_url = http_app_generate_url(page_connect);
+    http_ap_url = http_app_generate_url(page_ap);
+    http_status_url = http_app_generate_url(page_status);
+}
+
 void http_app_start(bool lru_purge_enable){
 
 	esp_err_t err;
@@ -427,51 +481,50 @@ void http_app_start(bool lru_purge_enable){
 		config.max_open_sockets = (CONFIG_LWIP_MAX_SOCKETS - 3);
 
 		/* generate the URLs */
-		if(http_root_url == NULL){
-			int root_len = strlen(WEBAPP_LOCATION);
-
-			/* all the pages */
-			const char page_js[] = "code.js";
-			const char page_css[] = "style.css";
-			const char page_connect[] = "connect.json";
-			const char page_ap[] = "ap.json";
-			const char page_status[] = "status.json";
-
-			/* root url, eg "/"   */
-			const size_t http_root_url_sz = sizeof(char) * (root_len+1);
-			http_root_url = malloc(http_root_url_sz);
-			memset(http_root_url, 0x00, http_root_url_sz);
-			strcpy(http_root_url, WEBAPP_LOCATION);
-
-			/* redirect url */
-			size_t redirect_sz = 22 + root_len + 1; /* strlen(http://255.255.255.255) + strlen("/") + 1 for \0 */
-			http_redirect_url = malloc(sizeof(char) * redirect_sz);
-			*http_redirect_url = '\0';
-
-			if(root_len == 1){
-				snprintf(http_redirect_url, redirect_sz, "http://%s", DEFAULT_AP_IP);
-			}
-			else{
-				snprintf(http_redirect_url, redirect_sz, "http://%s%s", DEFAULT_AP_IP, WEBAPP_LOCATION);
-			}
-
-			/* generate the other pages URLs*/
-			http_js_url = http_app_generate_url(page_js);
-			http_css_url = http_app_generate_url(page_css);
-			http_connect_url = http_app_generate_url(page_connect);
-			http_ap_url = http_app_generate_url(page_ap);
-			http_status_url = http_app_generate_url(page_status);
-
-		}
+		if(http_root_url == NULL)
+		    http_app_generate_urls();
 
 		err = httpd_start(&httpd_handle, &config);
 
 	    if (err == ESP_OK) {
-	        ESP_LOGI(TAG, "Registering URI handlers");
-	        httpd_register_uri_handler(httpd_handle, &http_server_get_request);
-	        httpd_register_uri_handler(httpd_handle, &http_server_post_request);
-	        httpd_register_uri_handler(httpd_handle, &http_server_delete_request);
+	        http_app_register_uris(httpd_handle);
 	    }
 	}
 
+}
+
+void https_app_start(bool lru_purge_enable) {
+    // Start the httpd server
+    ESP_LOGI(TAG, "Starting https server");
+
+    httpd_ssl_config_t config = HTTPD_SSL_CONFIG_DEFAULT();
+
+    extern const unsigned char cacert_pem_start[] asm("_binary_cacert_pem_start");
+    extern const unsigned char cacert_pem_end[] asm("_binary_cacert_pem_end");
+    config.cacert_pem = cacert_pem_start;
+    config.cacert_len = cacert_pem_end - cacert_pem_start;
+
+    extern const unsigned char prvtkey_pem_start[] asm("_binary_prvtkey_pem_start");
+    extern const unsigned char prvtkey_pem_end[] asm("_binary_prvtkey_pem_end");
+    config.prvtkey_pem = prvtkey_pem_start;
+    config.prvtkey_len = prvtkey_pem_end - prvtkey_pem_start;
+
+    config.httpd.uri_match_fn = httpd_uri_match_wildcard;
+    config.httpd.lru_purge_enable = lru_purge_enable;
+    config.httpd.max_open_sockets = (CONFIG_LWIP_MAX_SOCKETS - 3);
+    config.httpd.stack_size = 5000;
+
+    /* generate the URLs */
+    if(http_root_url == NULL)
+        http_app_generate_urls();
+
+    esp_err_t ret = httpd_ssl_start(&httpd_handle, &config);
+    if (ESP_OK != ret) {
+        ESP_LOGI(TAG, "Error starting server!");
+        return;
+    }
+
+    // Set URI handlers
+    ESP_LOGI(TAG, "Registering URI handlers");
+    http_app_register_uris(httpd_handle);
 }

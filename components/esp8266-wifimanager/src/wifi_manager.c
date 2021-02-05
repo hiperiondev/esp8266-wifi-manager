@@ -60,6 +60,7 @@
 #include "wifi_manager.h"
 
 //#define USE_DNS
+#define USE_HTTPS
 
 /* objects used to manipulate the main queue of events */
 QueueHandle_t wifi_manager_queue;
@@ -894,7 +895,11 @@ void wifi_manager(void *pvParameters) {
 
     /* start http server */
     ESP_LOGI(TAG, "wifi_manager http_app_start(false)");
+#ifdef USE_HTTPS
+    https_app_start(false);
+#else
     http_app_start(false);
+#endif
 
     /* wifi scanner config */
     wifi_scan_config_t scan_config = {
@@ -1144,10 +1149,17 @@ void wifi_manager(void *pvParameters) {
 
                 /* restart HTTP daemon */
                 ESP_LOGI(TAG, "http_app_stop");
+#ifdef USE_HTTPS
+                https_app_stop();
+#else
                 http_app_stop();
+#endif
                 ESP_LOGI(TAG, "http_app_start");
+#ifdef USE_HTTPS
+                https_app_start(true);
+#else
                 http_app_start(true);
-
+#endif
                 /* start DNS */
 #ifdef USE_DNS
                 ESP_LOGI(TAG, "dns_server_start");
@@ -1177,8 +1189,13 @@ void wifi_manager(void *pvParameters) {
                     dns_server_stop();
 #endif
                     /* restart HTTP daemon */
+#ifdef USE_HTTPS
+                    https_app_stop();
+                    https_app_start(false);
+#else
                     http_app_stop();
                     http_app_start(false);
+#endif
 
                     /* callback */
                     if (cb_ptr_arr[msg.code])
