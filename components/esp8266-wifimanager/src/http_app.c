@@ -46,7 +46,6 @@ function to process requests, decode URLs, serve files, etc. etc.
 #include "wifi_manager.h"
 #include "http_app.h"
 
-
 /* @brief tag used for ESP serial console messages */
 static const char TAG[] = "http_server";
 
@@ -401,7 +400,6 @@ void http_app_stop(){
  * @brief helper to generate URLs of the wifi manager
  */
 static char* http_app_generate_url(const char* page){
-
 	char* ret;
 
 	int root_len = strlen(WEBAPP_LOCATION);
@@ -411,7 +409,6 @@ static char* http_app_generate_url(const char* page){
 	memset(ret, 0x00, url_sz);
 	strcpy(ret, WEBAPP_LOCATION);
 	ret = strcat(ret, page);
-
 	return ret;
 }
 
@@ -427,6 +424,7 @@ void http_app_start(bool lru_purge_enable){
 		 * We could register all URLs one by one, but this would not work while the fake DNS is active */
 		config.uri_match_fn = httpd_uri_match_wildcard;
 		config.lru_purge_enable = lru_purge_enable;
+		config.max_open_sockets = (CONFIG_LWIP_MAX_SOCKETS - 3);
 
 		/* generate the URLs */
 		if(http_root_url == NULL){

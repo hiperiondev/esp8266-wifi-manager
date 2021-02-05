@@ -81,7 +81,6 @@ void dns_server(void *pvParameters) {
     /* Set redirection DNS hijack to the access point IP */
     ip4_addr_t ip_resolved;
     inet_pton(AF_INET, DEFAULT_AP_IP, &ip_resolved);
-    ESP_LOGE(TAG, "inet_pton");
 
     /* Create UDP socket */
     socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -89,7 +88,6 @@ void dns_server(void *pvParameters) {
         ESP_LOGE(TAG, "Failed to create socket");
         exit(0);
     }
-    ESP_LOGE(TAG, "create socket");
 
     /* Bind to port 53 (typical DNS Server port) */
     tcpip_adapter_ip_info_t ip;

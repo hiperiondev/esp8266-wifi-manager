@@ -40,7 +40,7 @@
 #include <freertos/task.h>
 #include <freertos/event_groups.h>
 #include <freertos/timers.h>
-#include <http_app.h>
+#include "http_app.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -54,11 +54,12 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/sockets.h"
 #include "tcpip_adapter.h"
-
 #include "json.h"
 #include "dns_server.h"
 #include "nvs_sync.h"
 #include "wifi_manager.h"
+
+//#define USE_DNS
 
 /* objects used to manipulate the main queue of events */
 QueueHandle_t wifi_manager_queue;
@@ -88,12 +89,6 @@ static const char TAG[] = "wifi_manager";
 
 /* @brief task handle for the main wifi_manager task */
 static TaskHandle_t task_wifi_manager = NULL;
-
-/* @brief netif object for the STATION */
-//static tcpip_adapter_if_t *esp_netif_sta = NULL;
-
-/* @brief netif object for the ACCESS POINT */
-//static tcpip_adapter_if_t *esp_netif_ap = NULL;
 
 /**
  * The actual WiFi settings in use
@@ -432,7 +427,7 @@ void wifi_manager_clear_access_points_json() {
     strcpy(accessp_json, "[]\n");
 }
 void wifi_manager_generate_acess_points_json() {
-
+    ESP_LOGI(TAG, "wifi_manager_generate_acess_points_json");
     strcpy(accessp_json, "[");
 
     const char oneap_str[] = ",\"chan\":%d,\"rssi\":%d,\"auth\":%d}%c\n";
@@ -840,14 +835,6 @@ void wifi_manager_set_callback(message_code_t message_code, void (*func_ptr)(voi
     }
 }
 
-//tcpip_adapter_if_t* wifi_manager_get_esp_netif_ap() {
-//    return TCPIP_ADAPTER_IF_AP;
-//}
-
-//tcpip_adapter_if_t* wifi_manager_get_esp_netif_sta() {
-//    return TCPIP_ADAPTER_IF_STA;
-//}
-
 void wifi_manager(void *pvParameters) {
 
     queue_message msg;
@@ -862,8 +849,7 @@ void wifi_manager(void *pvParameters) {
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     /* default wifi config */
-    wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT()
-    ;
+    wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_config));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
@@ -911,7 +897,12 @@ void wifi_manager(void *pvParameters) {
     http_app_start(false);
 
     /* wifi scanner config */
-    wifi_scan_config_t scan_config = { .ssid = 0, .bssid = 0, .channel = 0, .show_hidden = true };
+    wifi_scan_config_t scan_config = {
+            .ssid = 0,
+            .bssid = 0,
+            .channel = 0,
+            .show_hidden = true
+    };
 
     /* enqueue first event: load previous config */
     wifi_manager_send_message(WM_ORDER_LOAD_AND_RESTORE_STA, NULL);
@@ -1149,8 +1140,7 @@ void wifi_manager(void *pvParameters) {
             case WM_ORDER_START_AP:
                 ESP_LOGI(TAG, "MESSAGE: ORDER_START_AP");
 
-                ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA))
-                ;
+                ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 
                 /* restart HTTP daemon */
                 ESP_LOGI(TAG, "http_app_stop");
@@ -1159,9 +1149,10 @@ void wifi_manager(void *pvParameters) {
                 http_app_start(true);
 
                 /* start DNS */
+#ifdef USE_DNS
                 ESP_LOGI(TAG, "dns_server_start");
                 dns_server_start();
-
+#endif
                 /* callback */
                 if (cb_ptr_arr[msg.code])
                     (*cb_ptr_arr[msg.code])(NULL);
@@ -1182,8 +1173,9 @@ void wifi_manager(void *pvParameters) {
                     esp_wifi_set_mode(WIFI_MODE_STA);
 
                     /* stop DNS */
+#ifdef USE_DNS
                     dns_server_stop();
-
+#endif
                     /* restart HTTP daemon */
                     http_app_stop();
                     http_app_start(false);
@@ -1217,18 +1209,18 @@ void wifi_manager(void *pvParameters) {
                 retries = 0;
 
                 /* refresh JSON with the new IP */
-                if (wifi_manager_lock_json_buffer( portMAX_DELAY)) {
+                if (wifi_manager_lock_json_buffer(portMAX_DELAY)) {
                     /* generate the connection info with success */
-                    ESP_LOGI(TAG, "-- A");
                     wifi_manager_generate_ip_info_json(UPDATE_CONNECTION_OK);
-                    ESP_LOGI(TAG, "-- B");
                     wifi_manager_unlock_json_buffer();
                 } else {
                     abort();
                 }
 
                 /* bring down DNS hijack */
+#ifdef USE_DNS
                 dns_server_stop();
+#endif
 
                 /* start the timer that will eventually shutdown the access point
                  * We check first that it's actually running because in case of a boot and restore connection
@@ -1260,8 +1252,7 @@ void wifi_manager(void *pvParameters) {
                 xEventGroupSetBits(wifi_manager_event_group, WIFI_MANAGER_REQUEST_DISCONNECT_BIT);
 
                 /* order wifi discconect */
-                ESP_ERROR_CHECK(esp_wifi_disconnect())
-                ;
+                ESP_ERROR_CHECK(esp_wifi_disconnect());
 
                 /* callback */
                 if (cb_ptr_arr[msg.code])
